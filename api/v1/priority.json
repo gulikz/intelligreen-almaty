@@ -5,7 +5,7 @@
   "district": "Жетысу",
   "lat": 43.24878,
   "lng": 76.92621,
-  "ecorisk": 10.14,
+  "ecorisk": 10.0,
   "ndvi": 0.121,
   "landuse": "Жилая"
  },
@@ -15,7 +15,7 @@
   "district": "Жетысу",
   "lat": 43.25824,
   "lng": 76.91872,
-  "ecorisk": 10.02,
+  "ecorisk": 10.0,
   "ndvi": 0.034,
   "landuse": "Жилая"
  },

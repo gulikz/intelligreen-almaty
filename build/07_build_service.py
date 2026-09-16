@@ -144,7 +144,7 @@ d, nb = cKDTree(xy).query(xy, k=7)
 NEIGH = nb[:, 1:].astype(int).tolist()
 
 # ---- колоночная выгрузка гексов -------------------------------------------
-pred_full = reg.predict(X)
+pred_full = np.clip(reg.predict(X), 0, 10)   # EcoRisk определён на 0-10, регрессор не ограничен
 HEX = {
     "id": hx["hex_id"].tolist(),
     "lat": [round(v, 5) for v in hx["lat"]],
@@ -153,7 +153,7 @@ HEX = {
     "landuse": [LANDUSE.index(v) for v in hx["landuse"]],
     "truth": [round(float(v), 3) for v in y_reg],
     "high_true": [int(v) for v in y_clf],
-    "pred_oof": [round(float(v), 3) for v in oof_r],
+    "pred_oof": [round(float(np.clip(v, 0, 10)), 3) for v in oof_r],
     "prob_oof": [round(float(v), 4) for v in oof_p],
     "feat": {c: [round(float(v), 4) for v in X[c]] for c in FEATS},
 }
