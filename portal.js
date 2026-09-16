@@ -266,8 +266,12 @@ function actionFor(i) {
 function buildPriority() {
   prioLayer.clearLayers();
   topList(100).forEach((i, k) => {
-    L.marker([H.lat[i], H.lng[i]], { icon: L.divIcon({ className: "", html: `<div class="rank">${k + 1}</div>`,
-      iconSize: [20, 20], iconAnchor: [10, 10] }) })
+    // первая двадцатка с номерами, остальные точками: сотня подписей в горячем
+    // ядре сливается в нечитаемое пятно и закрывает саму карту
+    const top20 = k < 20;
+    L.marker([H.lat[i], H.lng[i]], { icon: L.divIcon({ className: "",
+      html: top20 ? `<div class="rank">${k + 1}</div>` : `<div class="rank sm"></div>`,
+      iconSize: top20 ? [19, 19] : [9, 9], iconAnchor: top20 ? [9.5, 9.5] : [4.5, 4.5] }) })
       .bindTooltip(`<b>№${k + 1} · ${H.id[i]}</b><br>${META.districts[H.district[i]]} · EcoRisk ${f2(pred[i])}<br>${actionFor(i)}`)
       .on("click", () => selectHex(i)).addTo(prioLayer);
   });
