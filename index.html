@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IntelliGreen Almaty — геопространственный сервис оценки риска зелёной инфраструктуры</title>
+<meta name="description" content="Демонстрационный сервис: гражданские отчёты и открытые геоданные сводятся в гексагональную сетку Алматы, модель предсказывает риск деградации зелени, Getis-Ord Gi* находит горячие зоны.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <span class="mark">IntelliGreen</span><span class="mark brass">Almaty</span>
+    <span class="pill">демонстрационный сервис</span>
+  </div>
+  <nav class="nav">
+    <a href="#map">Карта</a>
+    <a href="#priority">Приоритеты</a>
+    <a href="#districts">Районы</a>
+    <a href="#model">Модель</a>
+    <a href="api.html">API</a>
+  </nav>
+</header>
+
+<main>
+
+<section class="hero">
+  <h1>Риск деградации зелёной инфраструктуры — по кварталам, а не по городу в среднем</h1>
+  <p class="lede">Сервис повторяет методику проекта целиком: гражданские отчёты и открытые геоданные
+    сводятся в гексагональную сетку 350 м, обученная модель считает EcoRisk для каждого квартала,
+    пространственная статистика находит статистически значимые горячие зоны, а многокритериальная
+    свёртка выдаёт приоритетный список адресов. Модель выполняется прямо в браузере: добавьте отчёт —
+    и прогноз для квартала пересчитается на ваших глазах.</p>
+  <div class="kpis" id="kpis"></div>
+</section>
+
+<section id="map" class="panel">
+  <div class="mapwrap">
+    <div class="maphead">
+      <div class="layers" id="layers"></div>
+      <div class="maptools">
+        <label class="chk"><input type="checkbox" id="hotspots"> горячие зоны Gi* <span class="q" title="Getis-Ord Gi* по кольцу из шести соседей, двусторонние p-значения с поправкой Бенджамини–Хохберга на множественность">?</span></label>
+        <button class="btn" id="reset">Сбросить мои отчёты</button>
+      </div>
+    </div>
+    <div class="canvasbox">
+      <canvas id="cv"></canvas>
+      <div class="tip" id="tip"></div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <p class="note" id="mapnote"></p>
+  </div>
+
+  <aside class="side">
+    <div class="card" id="hexcard">
+      <div class="kicker">Квартал</div>
+      <p class="muted" id="hexempty">Наведите курсор на карту и выберите квартал: откроются его признаки,
+        прогноз модели и форма гражданского отчёта.</p>
+      <div id="hexbody" hidden></div>
+    </div>
+
+    <div class="card" id="reportcard" hidden>
+      <div class="kicker">Гражданский отчёт</div>
+      <label class="fl">Категория проблемы
+        <select id="cat"></select></label>
+      <label class="fl">Серьёзность
+        <input type="range" id="sev" min="1" max="5" step="1" value="3">
+        <span class="sevval" id="sevval">3 — заметно</span></label>
+      <button class="btn primary" id="send">Отправить отчёт</button>
+      <p class="note">Отчёт меняет VGI-признаки квартала — число обращений, среднюю и максимальную
+        серьёзность, доверие, долю поведенческих категорий — и модель пересчитывает EcoRisk немедленно.
+        В демонстрации отчёты хранятся в вашем браузере; в рабочей системе — PostGIS и очередь верификации.</p>
+    </div>
+  </aside>
+</section>
+
+<section id="priority" class="panel block">
+  <div class="blockhead">
+    <h2>Приоритетные адреса</h2>
+    <p class="lede">Многокритериальная свёртка: риск деградации, дефицит зелени, плотность населения
+      и плотность обращений. Список пересчитывается вместе с вашими отчётами.</p>
+  </div>
+  <div class="tablewrap"><table id="prio"></table></div>
+</section>
+
+<section id="districts" class="panel block">
+  <div class="blockhead">
+    <h2>Рейтинг районов</h2>
+    <p class="lede">Сводный EcoRisk и доля кварталов высокого риска по восьми районам города.</p>
+  </div>
+  <div class="tablewrap"><table id="dist"></table></div>
+</section>
+
+<section id="model" class="panel block">
+  <div class="blockhead">
+    <h2>Модель и порог решения</h2>
+    <p class="lede">Оценка получена пространственной кросс-валидацией: город разбит на двенадцать
+      блоков, модель ни разу не видела блок, на котором проверяется. Порог выбирается по цене ошибки:
+      пропустить деградированный квартал втрое дороже ложной тревоги.</p>
+  </div>
+  <div class="modelgrid">
+    <div class="card">
+      <div class="kicker">Качество прогноза</div>
+      <div id="mmetrics"></div>
+    </div>
+    <div class="card">
+      <div class="kicker">Порог отнесения к высокому риску</div>
+      <input type="range" id="thr" min="5" max="95" step="1">
+      <div id="throut"></div>
+      <div class="cm" id="cm"></div>
+    </div>
+    <div class="card">
+      <div class="kicker">Вклад источников</div>
+      <div id="contrib"></div>
+      <p class="note">Доля вклада посчитана по частоте использования признаков в деревьях модели.
+        Гражданский сигнал не заменяет спутник, а достраивает его: он видит поведенческие проблемы,
+        которых нет в спектре.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <div>
+    <b>IntelliGreen Almaty</b> — демонстрационный сервис к заявке на грантовый проект акимата города
+    Алматы, 2026. Приоритетное направление: комфортная городская среда.
+  </div>
+  <div class="muted">Данные пилотной модели: 2 365 кварталов, эталон EcoRisk известен по построению,
+    поэтому оценка точности осмысленна. Открытые данные — CC-BY 4.0. Исходники и API — по ссылке в шапке.</div>
+</footer>
+
+</main>
+<script src="app.js"></script>
+</body>
+</html>

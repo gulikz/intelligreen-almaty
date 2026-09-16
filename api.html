@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IntelliGreen Almaty — открытый API</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="mark">IntelliGreen</span><span class="mark brass">Almaty</span>
+    <span class="pill">открытый API</span></div>
+  <nav class="nav"><a href="index.html">К сервису</a></nav>
+</header>
+
+<main class="doc">
+  <h1>Открытый API</h1>
+  <p>Данные отдаются статически по HTTPS, поэтому доступны из любого клиента без ключей и лимитов:
+    QGIS и ArcGIS открывают GeoJSON по ссылке напрямую, скрипты — обычным HTTP-запросом.
+    Лицензия — CC-BY 4.0: используйте свободно, указывая источник.</p>
+
+  <h2>Точки доступа</h2>
+  <div class="ep"><span class="u">GET /api/v1/hexes.geojson</span>
+    <span class="d">2 365 кварталов Алматы: координаты, прогноз EcoRisk, вероятность высокого риска,
+      NDVI, температура поверхности, число обращений, землепользование. Формат GeoJSON, EPSG:4326.</span></div>
+  <div class="ep"><span class="u">GET /api/v1/districts.json</span>
+    <span class="d">Сводка по восьми районам: средний EcoRisk, кварталы высокого риска, NDVI, обращения.</span></div>
+  <div class="ep"><span class="u">GET /api/v1/priority.json</span>
+    <span class="d">Сто приоритетных кварталов с координатами и рангом.</span></div>
+  <div class="ep"><span class="u">GET /api/v1/metrics.json</span>
+    <span class="d">Метрики модели: R², MAE, AUC, порог по цене ошибки, FNR и FPR, список признаков.</span></div>
+  <div class="ep"><span class="u">GET /data/model.json</span>
+    <span class="d">Сама модель: деревья XGBoost в компактном JSON. Её можно выполнить у себя —
+      именно так и работает карта сервиса.</span></div>
+
+  <h2>Пример: Python</h2>
+  <pre>import requests
+
+base = "https://GHUSER.github.io/REPO"
+hexes = requests.get(f"{base}/api/v1/hexes.geojson").json()
+top = sorted(hexes["features"],
+             key=lambda f: -f["properties"]["ecorisk"])[:10]
+for f in top:
+    p = f["properties"]
+    lng, lat = f["geometry"]["coordinates"]
+    print(f'{p["hex_id"]}  {p["district"]:12s}  EcoRisk {p["ecorisk"]:.2f}  {lat:.4f},{lng:.4f}')</pre>
+
+  <h2>Пример: QGIS</h2>
+  <pre>Слой -> Добавить слой -> Добавить векторный слой -> Протокол HTTP(S)
+URL: https://GHUSER.github.io/REPO/api/v1/hexes.geojson
+Дальше — стилизация по полю ecorisk градиентом, как на карте сервиса.</pre>
+
+  <h2>Пример: выполнить модель у себя</h2>
+  <p>Модель — это массив деревьев. Сравнение признака с порогом идёт в <code>float32</code>:
+    в двойной точности маршрут по дереву иногда расходится с XGBoost, и прогноз уезжает.</p>
+  <pre>import json, math, requests
+m = requests.get("https://GHUSER.github.io/REPO/data/model.json").json()
+
+def run(trees, row):
+    s = trees["base_score"]
+    for nodes in trees["trees"]:
+        k = 0
+        while nodes[k][0] != -1:
+            f, thr, left, right = nodes[k]
+            k = left if np.float32(row[f]) &lt; np.float32(thr) else right
+        s += nodes[k][1]
+    return s
+
+row = [0.0] * len(m["features"])          # порядок признаков — m["features"]
+ecorisk = run(m["regressor"], row)
+prob    = 1 / (1 + math.exp(-run(m["classifier"], row)))</pre>
+
+  <h2>Чего в демонстрации нет</h2>
+  <p>Приём гражданских отчётов работает только в браузере посетителя: отчёт меняет признаки квартала
+    и модель пересчитывает прогноз на месте, но на сервер ничего не уходит и другим посетителям не видно.
+    В рабочей системе этот слой — PostgreSQL с PostGIS, FastAPI, очередь верификации, ограничение частоты
+    и оценка доверия участника; статический хостинг для этого непригоден по определению.</p>
+
+  <h2>Источник данных</h2>
+  <p>Показаны данные пилотной модели: синтетический эко-двойник Алматы на 2 365 кварталов, где истинный
+    EcoRisk известен по построению. Именно поэтому на сервисе можно честно показать ошибку прогноза —
+    есть с чем сравнивать. В рабочей системе те же признаки приходят из Sentinel-2, Landsat,
+    OpenStreetMap, открытого кадастра, WorldPop и SRTM.</p>
+</main>
+</body>
+</html>

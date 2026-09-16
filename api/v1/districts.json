@@ -1,0 +1,74 @@
+[
+ {
+  "district": "Жетысу",
+  "hexes": 160,
+  "mean_ecorisk": 8.433,
+  "high_risk_hexes": 152,
+  "mean_ndvi": 0.172,
+  "mean_lst_c": 33.61,
+  "reports": 4186
+ },
+ {
+  "district": "Бостандык",
+  "hexes": 221,
+  "mean_ecorisk": 5.961,
+  "high_risk_hexes": 99,
+  "mean_ndvi": 0.339,
+  "mean_lst_c": 28.4,
+  "reports": 4610
+ },
+ {
+  "district": "Наурызбай",
+  "hexes": 169,
+  "mean_ecorisk": 5.936,
+  "high_risk_hexes": 67,
+  "mean_ndvi": 0.295,
+  "mean_lst_c": 27.37,
+  "reports": 2555
+ },
+ {
+  "district": "Алатау",
+  "hexes": 390,
+  "mean_ecorisk": 5.164,
+  "high_risk_hexes": 37,
+  "mean_ndvi": 0.326,
+  "mean_lst_c": 25.29,
+  "reports": 3312
+ },
+ {
+  "district": "Ауэзов",
+  "hexes": 253,
+  "mean_ecorisk": 4.917,
+  "high_risk_hexes": 52,
+  "mean_ndvi": 0.378,
+  "mean_lst_c": 25.4,
+  "reports": 4176
+ },
+ {
+  "district": "Турксиб",
+  "hexes": 470,
+  "mean_ecorisk": 4.842,
+  "high_risk_hexes": 19,
+  "mean_ndvi": 0.347,
+  "mean_lst_c": 24.51,
+  "reports": 4467
+ },
+ {
+  "district": "Алмалы",
+  "hexes": 273,
+  "mean_ecorisk": 4.396,
+  "high_risk_hexes": 34,
+  "mean_ndvi": 0.384,
+  "mean_lst_c": 24.51,
+  "reports": 2534
+ },
+ {
+  "district": "Медеу",
+  "hexes": 429,
+  "mean_ecorisk": 3.285,
+  "high_risk_hexes": 26,
+  "mean_ndvi": 0.499,
+  "mean_lst_c": 22.56,
+  "reports": 4037
+ }
+]
