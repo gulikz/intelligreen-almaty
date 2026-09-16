@@ -10,7 +10,7 @@
 <header class="top">
   <div class="brand"><span class="mark">IntelliGreen</span><span class="mark brass">Almaty</span>
     <span class="pill">открытый API</span></div>
-  <nav class="nav"><a href="index.html">К сервису</a></nav>
+  <nav class="nav"><a href="index.html">К геопорталу</a></nav>
 </header>
 
 <main class="doc">
@@ -29,6 +29,9 @@
     <span class="d">Сто приоритетных кварталов с координатами и рангом.</span></div>
   <div class="ep"><span class="u">GET /api/v1/metrics.json</span>
     <span class="d">Метрики модели: R², MAE, AUC, порог по цене ошибки, FNR и FPR, список признаков.</span></div>
+  <div class="ep"><span class="u">GET /data/layers.json</span>
+    <span class="d">Тепловые карты по 12 категориям обращений (число на квартал) и кластеры
+      «синдромов» — типичных сочетаний проблем.</span></div>
   <div class="ep"><span class="u">GET /data/model.json</span>
     <span class="d">Сама модель: деревья XGBoost в компактном JSON. Её можно выполнить у себя —
       именно так и работает карта сервиса.</span></div>
@@ -36,7 +39,7 @@
   <h2>Пример: Python</h2>
   <pre>import requests
 
-base = "https://GHUSER.github.io/REPO"
+base = "https://gulikz.github.io/intelligreen-almaty"
 hexes = requests.get(f"{base}/api/v1/hexes.geojson").json()
 top = sorted(hexes["features"],
              key=lambda f: -f["properties"]["ecorisk"])[:10]
@@ -47,14 +50,14 @@ for f in top:
 
   <h2>Пример: QGIS</h2>
   <pre>Слой -> Добавить слой -> Добавить векторный слой -> Протокол HTTP(S)
-URL: https://GHUSER.github.io/REPO/api/v1/hexes.geojson
+URL: https://gulikz.github.io/intelligreen-almaty/api/v1/hexes.geojson
 Дальше — стилизация по полю ecorisk градиентом, как на карте сервиса.</pre>
 
   <h2>Пример: выполнить модель у себя</h2>
   <p>Модель — это массив деревьев. Сравнение признака с порогом идёт в <code>float32</code>:
     в двойной точности маршрут по дереву иногда расходится с XGBoost, и прогноз уезжает.</p>
   <pre>import json, math, requests
-m = requests.get("https://GHUSER.github.io/REPO/data/model.json").json()
+m = requests.get("https://gulikz.github.io/intelligreen-almaty/data/model.json").json()
 
 def run(trees, row):
     s = trees["base_score"]
