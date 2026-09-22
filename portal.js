@@ -255,12 +255,49 @@ function priorityScore(i) {
        + .20 * Math.min(1, pop / 6000) + .15 * Math.min(1, Math.log1p(rep) / Math.log1p(40));
 }
 function topList(n) { return [...Array(H.lat.length).keys()].sort((a, b) => priorityScore(b) - priorityScore(a)).slice(0, n); }
+function reasonFor(i) {
+  const r = [], nd = F("ndvi")[i], lst = F("lst_c")[i], rep = F("rep_count")[i],
+        tr = F("ndvi_trend_3y")[i], pop = F("pop_density")[i];
+  if (nd < .25) r.push(`NDVI ${f3(nd)} — растительный покров практически отсутствует`);
+  else if (nd < .4) r.push(`NDVI ${f3(nd)} — покров разрежен`);
+  if (tr < -.02) r.push(`тренд NDVI за 3 года ${f3(tr)} — покров сокращается`);
+  if (lst > 32) r.push(`температура поверхности ${f1(lst)} °C — очаг перегрева`);
+  if (rep > 12) r.push(`${Math.round(rep)} обращений жителей — подтверждено с земли`);
+  if (pop > 8000) r.push(`${Math.round(pop)} чел/км² — высокая плотность, эффект затронет многих`);
+  if (giSig[i] && gi[i] > 0) r.push(`Gi* z = ${f2(gi[i])} — статистически значимая горячая зона`);
+  if (!r.length) r.push(`EcoRisk ${f2(pred[i])} по совокупности признаков`);
+  return r;
+}
 function actionFor(i) {
+  // ведущая жалоба квартала определяет тип работ; если обращений мало —
+  // решает дистанционное зондирование (дефицит покрова, перегрев) и землепользование
+  const MAP = {
+    "Стихийная свалка": "Санитарная очистка",
+    "Переполненный бак": "Санитарная очистка",
+    "Парковка на газоне": "Контроль и штрафы",
+    "Подтопление": "Инженерные сети",
+    "Загрязнённый арык": "Инженерные сети",
+    "Пень / вырубка": "Восстановительная посадка",
+    "Засохшее дерево": "Санитарная обрезка и посадка",
+    "Асфальтированный газон": "Благоустройство и снятие асфальта",
+    "Сломанная скамейка/фонарь": "Благоустройство",
+    "Дымящая труба": "Экологический надзор",
+    "Отсутствие озеленения": "Озеленение и посадка",
+    "Хорошее место": "Сохранить и тиражировать",
+  };
+  const c = LAY.counts[i];
+  if (c) {
+    let best = -1, bv = 0, tot = 0;
+    for (let k = 0; k < c.length; k++) { tot += c[k]; if (c[k] > bv) { bv = c[k]; best = k; } }
+    if (tot >= 5 && bv / tot >= 0.22) {
+      const a = MAP[LAY.categories[best]];
+      if (a) return a;
+    }
+  }
   const nd = F("ndvi")[i], lu = META.landuse[H.landuse[i]];
   if (nd < .25) return "Озеленение и посадка";
-  if (F("rep_count")[i] > 12) return "Санитарная очистка";
   if (lu === "Пустырь") return "Благоустройство";
-  if (F("lst_c")[i] > 30) return "Озеленение и посадка";
+  if (F("lst_c")[i] > 32) return "Озеленение и посадка";
   return "Экологический надзор";
 }
 function buildPriority() {
@@ -352,7 +389,11 @@ function showObject(i) {
     <div class="kv"><span class="k">Ошибка прогноза</span><span class="v" style="color:${Math.abs(d) <= 1 ? "var(--emerald-bright)" : "var(--oxblood)"}">${d >= 0 ? "+" : "−"}${f2(Math.abs(d))}</span></div>
     <h4>Рекомендация</h4>
     <div class="kv"><span class="k">Тип работы</span><span class="v">${actionFor(i)}</span></div>
+    <h4>Основание</h4>
+    ${reasonFor(i).map(r => `<div class="kv"><span class="k" style="font-size:11px">${r}</span></div>`).join("")}
+    <button class="btn ghost" id="objOrder">Наряд-задание по этому кварталу</button>
     <button class="btn" id="objReport">Сообщить о проблеме здесь</button>`;
+  $("#objOrder").onclick = () => workOrder([i], `Наряд-задание: квартал ${H.id[i]}`);
   $("#objReport").onclick = () => showReportForm(i, { lat: H.lat[i], lng: H.lng[i] });
 }
 
@@ -552,6 +593,75 @@ function exportGeo() {
         action: actionFor(i) } })) }));
 }
 
+/* ---------- наряд-задание: печатный отчёт для исполнителя ---------- */
+function workOrder(list, title) {
+  const now = new Date().toLocaleString("ru-RU");
+  const rows = list.map((i, k) => {
+    const lat = H.lat[i].toFixed(5), lng = H.lng[i].toFixed(5);
+    return `<tr>
+      <td class="n">${k + 1}</td>
+      <td><b>${H.id[i]}</b><br><span class="m">${META.districts[H.district[i]]} · ${META.landuse[H.landuse[i]]}</span></td>
+      <td class="c">${lat}<br>${lng}<br>
+        <a href="https://www.google.com/maps?q=${lat},${lng}">карта</a> ·
+        <a href="https://2gis.kz/almaty/geo/${lng},${lat}">2ГИС</a></td>
+      <td><b>${actionFor(i)}</b></td>
+      <td class="m">${reasonFor(i).map(x => "— " + x).join("<br>")}</td>
+      <td class="n">${f2(pred[i])}<br><span class="m">${prob[i] >= META.metrics.thr_cost ? "высокий" : "умеренный"}</span></td>
+    </tr>`;
+  }).join("");
+  const byAction = {};
+  list.forEach(i => { const a = actionFor(i); byAction[a] = (byAction[a] || 0) + 1; });
+  const summary = Object.entries(byAction).sort((a, b) => b[1] - a[1])
+    .map(([a, n]) => `<li><b>${a}</b> — ${n} адрес(ов)</li>`).join("");
+  const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<title>${title} — IntelliGreen Almaty</title>
+<style>
+  @page{size:A4 landscape;margin:12mm}
+  *{box-sizing:border-box}
+  body{font:12px/1.45 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif;color:#15201a;margin:0;padding:18px;background:#fff}
+  h1{font:600 20px/1.2 Georgia,serif;margin:0 0 2px}
+  .sub{color:#5d6b62;font-size:12px}
+  .meta{display:flex;gap:26px;flex-wrap:wrap;margin:12px 0 16px;padding:10px 12px;
+    background:#f3f6f3;border-left:3px solid #3f9d70;border-radius:3px}
+  .meta div span{display:block;color:#5d6b62;font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+  .meta div b{font-size:14px}
+  ul{margin:6px 0 16px 18px}
+  table{width:100%;border-collapse:collapse;font-size:11px}
+  th{background:#e7ece8;text-align:left;padding:6px 7px;border-bottom:2px solid #c3ccc6;
+    font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:#44544b}
+  td{padding:6px 7px;border-bottom:1px solid #e2e8e3;vertical-align:top}
+  tr:nth-child(even) td{background:#fafcfa}
+  .n{text-align:right;white-space:nowrap} .c{white-space:nowrap;font-size:10px}
+  .m{color:#5d6b62;font-size:10px}
+  a{color:#2f6b4f}
+  .foot{margin-top:16px;padding-top:10px;border-top:1px solid #d8e0da;color:#5d6b62;font-size:10px}
+  @media print{body{padding:0} .noprint{display:none}}
+  .noprint{margin:14px 0;padding:9px 12px;background:#fff8e6;border:1px solid #e3cd90;border-radius:3px;font-size:12px}
+</style></head><body>
+<h1>${title}</h1>
+<div class="sub">IntelliGreen Almaty — интеллектуальная геопространственная система поддержки принятия решений
+  по управлению зелёной инфраструктурой города Алматы</div>
+<div class="noprint">Чтобы сохранить в PDF: Файл → Печать → Сохранить как PDF. Ориентация — альбомная.</div>
+<div class="meta">
+  <div><span>Адресов в задании</span><b>${list.length}</b></div>
+  <div><span>Сформировано</span><b>${now}</b></div>
+  <div><span>Модель</span><b>R² ${f3(META.metrics.r2_spatial)} · пространственная CV</b></div>
+  <div><span>Порог высокого риска</span><b>p ≥ ${f2(META.metrics.thr_cost)} (цена ошибки 3:1)</b></div>
+  <div><span>Источник</span><b>gulikz.github.io/intelligreen-almaty</b></div>
+</div>
+<b>Состав работ</b><ul>${summary}</ul>
+<table><thead><tr><th>№</th><th>Квартал</th><th>Координаты</th><th>Что делать</th>
+  <th>Почему — основание по данным</th><th>EcoRisk</th></tr></thead><tbody>${rows}</tbody></table>
+<div class="foot">Приоритет рассчитан многокритериальной свёрткой: риск деградации, дефицит зелени,
+  плотность населения, плотность обращений жителей. Прогноз EcoRisk получен моделью XGBoost на слиянии
+  гражданских отчётов и открытых геоданных; оценка качества — пространственная кросс-валидация по
+  12 блокам. Данные пилотной модели, лицензия CC-BY 4.0.</div>
+</body></html>`;
+  const w = window.open("", "_blank");
+  if (w) { w.document.write(html); w.document.close(); }
+  else download("intelligreen-naryad.html", html, "text/html;charset=utf-8");
+}
+
 /* ---------- легенда ---------- */
 function drawLegend() {
   const L_ = {
@@ -650,6 +760,12 @@ async function init() {
     else { p.classList.remove("min"); $("#tToggle").textContent = "Свернуть"; }
     setTimeout(() => map.invalidateSize(), 220); };
   $("#tCsv").onclick = exportCsv; $("#tGeo").onclick = exportGeo;
+  $("#tOrder").onclick = () => {
+    const sel = tableRows();
+    workOrder(sel.slice(0, 100).sort((a, b) => priorityScore(b) - priorityScore(a)),
+      filtered ? `Наряд-задание по выборке (${Math.min(100, sel.length)} адресов)`
+               : "Наряд-задание: ТОП-100 приоритетных адресов");
+  };
   $("#tExport").onclick = exportGeo;
   document.addEventListener("click", e => {
     const th = e.target.closest("#tbl th[data-k]");
